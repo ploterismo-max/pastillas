@@ -234,6 +234,14 @@
     .day-date { font-size: 12px; color: var(--text-light); margin-top: 1px; }
     .day-count { font-size: 13px; color: var(--text-light); white-space: nowrap; }
 
+    /* ── CHART ── */
+    .chart-wrap { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .chart-title { font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 12px; }
+    #historyChart { width: 100%; height: 140px; display: block; }
+    .chart-legend { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-light); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
     /* ── SETTINGS ── */
     .settings-card {
       background: white;
@@ -340,7 +348,10 @@
 <!-- ALL DONE -->
 <div class="all-done" id="allDone">✅ ¡Todas las pastillas tomadas hoy! 🎉</div>
 
+<!-- ════ VIEW: HOY ════ -->
 <div id="viewHoy" class="view active">
+
+  <!-- DESAYUNO -->
   <div class="section">
     <div class="section-header">
       <span class="section-emoji">🌅</span>
@@ -352,6 +363,8 @@
     </div>
     <div class="pills-card" id="pillsDesayuno"></div>
   </div>
+
+  <!-- COMIDA -->
   <div class="section">
     <div class="section-header">
       <span class="section-emoji">☀️</span>
@@ -363,6 +376,8 @@
     </div>
     <div class="pills-card" id="pillsComida"></div>
   </div>
+
+  <!-- CENA -->
   <div class="section">
     <div class="section-header">
       <span class="section-emoji">🌙</span>
@@ -374,45 +389,43 @@
     </div>
     <div class="pills-card" id="pillsCena"></div>
   </div>
+
 </div>
+
+<!-- ════ VIEW: HISTORIAL ════ -->
 <div id="viewHistorial" class="view">
   <div class="page-container">
-    <div class="page-title">📅 Historial (14 días)</div>
+    <div class="page-title">📅 Historial (30 días)</div>
+    <div class="chart-wrap">
+      <div class="chart-title">% de tomas completadas por día</div>
+      <canvas id="historyChart"></canvas>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#34c759"></div> 100%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff9500"></div> Parcial</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff3b30"></div> &lt;50%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e5e5ea"></div> Sin datos</div>
+      </div>
+    </div>
     <div id="historyList"></div>
   </div>
 </div>
+
+<!-- ════ VIEW: AJUSTES ════ -->
 <div id="viewAjustes" class="view">
   <div class="page-container">
     <div class="page-title">⚙️ Ajustes</div>
+
+    <!-- Horarios -->
     <div class="settings-card">
       <h3>Horarios de comidas</h3>
       <p>Ajusta tus horarios para que los avisos lleguen a tiempo.</p>
+
       <div class="time-row">
         <div class="time-label">🌅 Desayuno <small id="subDesayuno">Aviso a las 11:55</small></div>
         <input type="time" class="time-input" id="timeDesayuno" value="12:00">
       </div>
       <div class="time-row">
         <div class="time-label">☀️ Comida <small id="subComida">Aviso a las 14:25</small></div>
-        <input type="time" class="time-input" id="timeComida" value="14:30">
-      </div>
-      <div class="time-row">
-        <div class="time-label">🌙 Cena <small id="subCena">Aviso a las 20:55</small></div>
-        <input type="time" class="time-input" id="timeCena" value="21:00">
-      </div>
-    </div>
-    <div class="settings-card">
-      <h3>🔔 Recordatorios</h3>
-      <p>Activa los avisos para que te recuerde tomar las pastillas 5 minutos antes de cada comida.</p>
-      <button class="btn btn-primary" onclick="requestNotifications()">Activar recordatorios</button>
-      <div class="notif-status" id="notifStatus"></div>
-    </div>
-    <div class="settings-card">
-      <h3>📱 Instalar en iPhone</h3>
-      <p>Para añadirla a tu pantalla de inicio:</p>
-      <div class="install-steps">1. Abre en <b>Safari</b><br>2. Pulsa <b>Compartir ⬆️</b><br>3. Toca <b>"Añadir a la pantalla de inicio"</b></div>
-    </div>
-  </div>
-</div>l">☀️ Comida <small id="subComida">Aviso a las 14:25</small></div>
         <input type="time" class="time-input" id="timeComida" value="14:30">
       </div>
       <div class="time-row">
@@ -593,6 +606,84 @@ function renderAll() {
 }
 
 // ════════════════════════════════
+//  CHART
+// ════════════════════════════════
+function drawChart(dataArr) {
+  const canvas = document.getElementById('historyChart');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 300;
+  const H = 140;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const padL = 30, padR = 4, padT = 8, padB = 24;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = dataArr.length;
+  const barW = chartW / n;
+  const barPad = Math.max(1, barW * 0.15);
+
+  ctx.font = '9px -apple-system, sans-serif';
+  [0, 25, 50, 75, 100].forEach(pct => {
+    const y = padT + chartH - (pct / 100) * chartH;
+    ctx.beginPath();
+    ctx.strokeStyle = pct === 0 ? '#c7c7cc' : '#e5e5ea';
+    ctx.lineWidth = 1;
+    ctx.setLineDash(pct === 0 ? [] : [3, 3]);
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (pct === 0 || pct === 50 || pct === 100) {
+      ctx.fillStyle = '#8e8e93';
+      ctx.textAlign = 'right';
+      ctx.fillText(pct + '%', padL - 3, y + 3);
+    }
+  });
+
+  dataArr.forEach((d, i) => {
+    const x = padL + i * barW + barPad;
+    const bw = barW - barPad * 2;
+    const barH = Math.max(0, (d.pct / 100) * chartH);
+    const y = padT + chartH - barH;
+    const r = Math.min(3, bw / 2, barH);
+
+    let color = '#e5e5ea';
+    if (d.hasData) {
+      if (d.pct === 100) color = '#34c759';
+      else if (d.pct >= 50) color = '#ff9500';
+      else color = '#ff3b30';
+    }
+
+    if (barH > 0) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + bw - r, y);
+      ctx.quadraticCurveTo(x + bw, y, x + bw, y + r);
+      ctx.lineTo(x + bw, y + barH);
+      ctx.lineTo(x, y + barH);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    if (i % 5 === 0 || i === n - 1) {
+      ctx.fillStyle = '#8e8e93';
+      ctx.font = '9px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(i === n - 1 ? 'Hoy' : `-${n - 1 - i}d`, x + bw / 2, H - 6);
+    }
+  });
+}
+
+// ════════════════════════════════
 //  RENDER HISTORIAL
 // ════════════════════════════════
 function renderHistory() {
@@ -602,13 +693,22 @@ function renderHistory() {
 
   const DAY   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const MONTH = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const chartData = [];
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toISOString().split('T')[0];
-    const dayData = all[key] || {};
-    const count = Object.values(dayData).filter(Boolean).length;
+    const cnt = Object.values(all[key] || {}).filter(Boolean).length;
+    chartData.push({ pct: Math.round((cnt / TOTAL) * 100), hasData: cnt > 0 });
+  }
+  drawChart(chartData);
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    const count = Object.values(all[key] || {}).filter(Boolean).length;
     const pct = Math.round((count / TOTAL) * 100);
 
     const label = i === 0 ? 'Hoy' : i === 1 ? 'Ayer' : DAY[d.getDay()];
@@ -798,3 +898,4 @@ init();
 </script>
 </body>
 </html>
+
